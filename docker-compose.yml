@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: bank_app
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - micro-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: always
+    expose:
+      - "5000"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/bank_app
+      SECRET_KEY: supersecretkey
+    depends_on:
+      - mongo
+    networks:
+      - micro-net
+
+  transactions:
+    build:
+      context: ./transactions
+      dockerfile: Dockerfile
+    container_name: transactions
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/bank_app
+    depends_on:
+      - mongo
+      - backend
+    networks:
+      - micro-net
+
+  frontend:
+    build:
+      context: ./studentportfolio
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+      - transactions
+    networks:
+      - micro-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+      - transactions
+    networks:
+      - micro-net
+
+volumes:
+  mongo_data:
+
+networks:
+  micro-net:
+    driver: bridge
